@@ -9,6 +9,7 @@ public sealed partial class MainForm : Form
     private readonly InstallCoordinator coordinator;
     private readonly TextBox installPath = new();
     private readonly TextBox steamUsername = new();
+    private readonly ComboBox gameLanguage = new();
     private readonly Label status = new();
     private readonly ProgressBar progressBar = new();
     private readonly RichTextBox activity = new();
@@ -17,8 +18,12 @@ public sealed partial class MainForm : Form
     private readonly Button repairButton = new();
     private readonly Button updateButton = new();
     private readonly Button cancelButton = new();
+    
     private CancellationTokenSource? operationCancellation;
     private bool busy;
+    private bool preferencesLoaded;
+
+    private LanguageSpec SelectedLanguage => gameLanguage.SelectedItem as LanguageSpec ?? AppConstants.Languages[0];
 
     public MainForm(AppOptions options)
     {
@@ -32,6 +37,11 @@ public sealed partial class MainForm : Form
         Font = new Font("Segoe UI", 9F);
         BackColor = Color.FromArgb(245, 247, 250);
         BuildLayout();
+        gameLanguage.SelectedIndexChanged += async (_, _) => {
+            if (preferencesLoaded && !busy){
+                await SavePreferencesAsync(CancellationToken.None);
+            }
+        };
         log.MessageWritten += OnLogMessage;
         Shown += async (_, _) => await LoadPreferencesAsync();
         FormClosing += OnFormClosing;
@@ -49,17 +59,16 @@ public sealed partial class MainForm : Form
         base.Dispose(disposing);
     }
 
-    private async Task LoadPreferencesAsync()
-    {
-        try
-        {
+    private async Task LoadPreferencesAsync(){
+        try{
             UserPreferences preferences = await InstallCoordinator.LoadPreferencesAsync(CancellationToken.None);
             installPath.Text = preferences.InstallDirectory;
             steamUsername.Text = preferences.SteamUsername;
+            LanguageSpec savedLanguage = AppConstants.ResolveLanguage(preferences.SteamLanguage);
+            gameLanguage.SelectedItem = savedLanguage;
+            preferencesLoaded = true;
             await RefreshLocalStatusAsync();
-        }
-        catch (Exception exception)
-        {
+        } catch (Exception exception){
             ShowFailure(exception);
         }
     }
@@ -91,6 +100,7 @@ public sealed partial class MainForm : Form
         {
             InstallDirectory = installPath.Text.Trim(),
             SteamUsername = steamUsername.Text.Trim(),
+            SteamLanguage = (gameLanguage.SelectedItem as LanguageSpec)?.SteamLanguage ?? AppConstants.Languages[0].SteamLanguage
         };
         return InstallCoordinator.SavePreferencesAsync(preferences, cancellationToken);
     }

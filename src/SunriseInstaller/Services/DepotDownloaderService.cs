@@ -68,6 +68,7 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
         string executable,
         string installRoot,
         string steamUsername,
+        LanguageSpec language,
         bool validate,
         IProgress<string>? status,
         CancellationToken cancellationToken)
@@ -79,9 +80,10 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
         Console.WriteLine("Credentials are handled by DepotDownloader in this window.");
         Console.WriteLine();
 
-        for (int index = 0; index < AppConstants.Depots.Length; index++)
+        DepotSpec[] depots = AppConstants.DepotsFor(language);
+        for (int index = 0; index < depots.Length; index++)
         {
-            DepotSpec depot = AppConstants.Depots[index];
+            DepotSpec depot = depots[index];
             status?.Report($"{(validate ? "Validating" : "Downloading")} depot {depot.DepotId}...");
             int exitCode = await RunAsync(
                 executable,

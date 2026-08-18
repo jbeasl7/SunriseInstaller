@@ -31,6 +31,7 @@ public sealed partial class MainForm
             (progress, cancellationToken) => coordinator.InstallAsync(
                 installPath.Text,
                 steamUsername.Text,
+                SelectedLanguage,
                 progress,
                 cancellationToken));
     }
@@ -54,6 +55,7 @@ public sealed partial class MainForm
             (progress, cancellationToken) => coordinator.RepairAsync(
                 installPath.Text,
                 steamUsername.Text,
+                SelectedLanguage,
                 progress,
                 cancellationToken));
     }
@@ -160,6 +162,7 @@ public sealed partial class MainForm
     {
         installPath.Enabled = !isBusy;
         steamUsername.Enabled = !isBusy;
+        gameLanguage.Enabled = !isBusy;
         browseButton.Enabled = !isBusy;
         installButton.Enabled = !isBusy;
         repairButton.Enabled = !isBusy;

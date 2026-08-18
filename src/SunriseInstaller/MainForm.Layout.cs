@@ -109,6 +109,14 @@ public sealed partial class MainForm
         steamUsername.Margin = new Padding(0, 5, 0, 8);
         panel.Controls.Add(steamUsername, 0, 1);
 
+        panel.Controls.Add(FieldLabel("Game language"), 0, 2);
+        gameLanguage.DropDownStyle = ComboBoxStyle.DropDownList;
+        gameLanguage.DisplayMember = nameof(LanguageSpec.DisplayName);
+        gameLanguage.DataSource = AppConstants.Languages;
+        gameLanguage.Dock = DockStyle.Top;
+        gameLanguage.Margin = new Padding(0, 5, 0, 8);
+        panel.Controls.Add(gameLanguage, 0, 3);
+
         Label help = new()
         {
             Text = "A console opens for password and Steam Guard prompts.",
@@ -116,7 +124,7 @@ public sealed partial class MainForm
             ForeColor = Color.FromArgb(100, 116, 139),
             Margin = new Padding(0),
         };
-        panel.Controls.Add(help, 0, 2);
+        panel.Controls.Add(help, 0, 4);
         return panel;
     }
 
