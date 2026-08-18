@@ -10,6 +10,8 @@ public sealed partial class MainForm : Form
     private readonly TextBox installPath = new();
     private readonly TextBox steamUsername = new();
     private readonly ComboBox gameLanguage = new();
+    private readonly Label languageDownloadNotice = new();
+    private readonly Label languageSupportWarning = new();
     private readonly Label status = new();
     private readonly ProgressBar progressBar = new();
     private readonly RichTextBox activity = new();
@@ -18,6 +20,7 @@ public sealed partial class MainForm : Form
     private readonly Button repairButton = new();
     private readonly Button updateButton = new();
     private readonly Button cancelButton = new();
+
 
     private CancellationTokenSource? operationCancellation;
     private bool busy;
@@ -55,10 +58,10 @@ public sealed partial class MainForm : Form
         base.Dispose(disposing);
     }
 
-    private async void GameLanguage_SelectedIndexChanged(
-        object? sender,
-        EventArgs eventArgs)
+    private async void GameLanguage_SelectedIndexChanged(object? sender, EventArgs eventArgs)
     {
+        UpdateLanguageWarning();
+
         if (!preferencesLoaded || busy)
         {
             return;
@@ -90,6 +93,14 @@ public sealed partial class MainForm : Form
         {
             ShowFailure(exception);
         }
+    }
+
+    private void UpdateLanguageWarning()
+    {
+        languageSupportWarning.Visible =
+            !SelectedLanguage.SteamLanguage.Equals(
+                "english",
+                StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task RefreshLocalStatusAsync()
