@@ -193,12 +193,12 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
 
             if (files.Count == 0)
             {
-                throw new InstallerException("The previous language depot manifest contained no readable files.");
+                throw new InstallerException("The depot manifest contained no readable files.");
             }
 
             log.Info(
                 "manifest_files_loaded",
-                "Loaded language depot manifest file list.",
+                "Loaded depot manifest file list.",
                 ("depot", depot.DepotId),
                 ("manifest", depot.ManifestId),
                 ("count", files.Count));

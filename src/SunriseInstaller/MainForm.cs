@@ -37,13 +37,7 @@ public sealed partial class MainForm : Form
         Font = new Font("Segoe UI", 9F);
         BackColor = Color.FromArgb(245, 247, 250);
         BuildLayout();
-        gameLanguage.SelectedIndexChanged += async (_, _) =>
-        {
-            if (preferencesLoaded && !busy)
-            {
-                await SavePreferencesAsync(CancellationToken.None);
-            }
-        };
+        gameLanguage.SelectedIndexChanged += GameLanguage_SelectedIndexChanged;
         log.MessageWritten += OnLogMessage;
         Shown += async (_, _) => await LoadPreferencesAsync();
         FormClosing += OnFormClosing;
@@ -59,6 +53,25 @@ public sealed partial class MainForm : Form
         }
 
         base.Dispose(disposing);
+    }
+
+    private async void GameLanguage_SelectedIndexChanged(
+        object? sender,
+        EventArgs eventArgs)
+    {
+        if (!preferencesLoaded || busy)
+        {
+            return;
+        }
+
+        try
+        {
+            await SavePreferencesAsync(CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            ShowFailure(exception);
+        }
     }
 
     private async Task LoadPreferencesAsync()
@@ -100,14 +113,18 @@ public sealed partial class MainForm : Form
         }
     }
 
-    private Task SavePreferencesAsync(CancellationToken cancellationToken)
+    private Task SavePreferencesAsync(
+        CancellationToken cancellationToken)
     {
         UserPreferences preferences = new()
         {
             InstallDirectory = installPath.Text.Trim(),
             SteamUsername = steamUsername.Text.Trim(),
-            SteamLanguage = (gameLanguage.SelectedItem as LanguageSpec)?.SteamLanguage ?? AppConstants.Languages[0].SteamLanguage
+            SteamLanguage = SelectedLanguage.SteamLanguage,
         };
-        return InstallCoordinator.SavePreferencesAsync(preferences, cancellationToken);
+
+        return InstallCoordinator.SavePreferencesAsync(
+            preferences,
+            cancellationToken);
     }
 }

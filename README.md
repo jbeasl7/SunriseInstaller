@@ -57,8 +57,8 @@ The shared Windows depot is:
 |---|---:|
 | `1085661` | `7180122903232116872` |
 
-When changing languages, the installer removes files belonging to the
-previous language depot before installing the new one. The selected
+When changing languages, the installer installs the selected language
+first, then removes files unique to the previous language depot. The selected
 language is also written to Sunrise's Steam language setting.
 
 Install requires ~110 GiB of free space.
