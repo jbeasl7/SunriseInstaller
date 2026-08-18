@@ -55,22 +55,20 @@ public sealed class SunriseSettingsService(InstallerLog log){
             path + $".{Guid.NewGuid():N}.tmp";
 
         try {
-            await using FileStream output = new(
+            await using (FileStream output = new(
                 temporaryPath,
                 FileMode.CreateNew,
                 FileAccess.Write,
                 FileShare.None,
                 16 * 1024,
-                FileOptions.Asynchronous | FileOptions.WriteThrough);
-
+                FileOptions.Asynchronous | FileOptions.WriteThrough)){
             await JsonSerializer.SerializeAsync(
                 output,
                 root,
                 JsonOptions,
                 cancellationToken);
-
             await output.FlushAsync(cancellationToken);
-
+            }
             File.Move(
                 temporaryPath,
                 path,
