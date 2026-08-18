@@ -75,7 +75,6 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
     {
         Directory.CreateDirectory(toolRoot);
 
-
         DepotSpec[] depots = AppConstants.DepotsFor(language);
         for (int index = 0; index < depots.Length; index++)
         {
@@ -95,7 +94,6 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
                 throw new InstallerException(DepotFailureMessage(exitCode));
             }
         }
-
     }
 
     public async Task<IReadOnlyList<string>> GetManifestFilesAsync(
@@ -187,7 +185,6 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
                 {
                     continue;
                 }
-
                 files.Add(parts[4]);
             }
 
