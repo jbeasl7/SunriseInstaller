@@ -9,6 +9,7 @@ public sealed class InstallCoordinator : IDisposable
     private readonly PayloadInstaller payloadInstaller;
     private readonly JsonStores stores;
     private readonly SunriseSettingsService sunriseSettings;
+    private readonly LanguageCleanupService languageCleanup;
 
     public InstallCoordinator(InstallerLog log, AppOptions options)
     {
@@ -18,6 +19,7 @@ public sealed class InstallCoordinator : IDisposable
         depots = new DepotDownloaderService(gitHub, log);
         payloadInstaller = new PayloadInstaller(log);
         sunriseSettings = new SunriseSettingsService(log);
+        languageCleanup = new LanguageCleanupService(log);
         stores = new JsonStores(log);
     }
 
@@ -208,9 +210,66 @@ public sealed class InstallCoordinator : IDisposable
         CancellationToken cancellationToken)
     {
         progress?.Report(new OperationProgress("Preparing DepotDownloader...", 2));
+
         string downloader = await depots.EnsureAvailableAsync(
             ScaleProgress(progress, 2, 8),
             cancellationToken);
+
+        using ConsoleWindow console = new("Sunrise Installer - Steam sign-in");
+
+        Console.WriteLine("Sunrise Installer");
+        Console.WriteLine("DepotDownloader needs a Steam account that owns the game.");
+        Console.WriteLine("Credentials are handled by DepotDownloader in this window.");
+        Console.WriteLine();
+
+        InstallerState? existingState = await stores.LoadStateAsync(installRoot, cancellationToken);
+
+        if (existingState is not null){
+            LanguageSpec previousLanguage =
+                AppConstants.ResolveLanguage(
+                    existingState.SteamLanguage);
+
+            bool languageChanged =
+                !previousLanguage.SteamLanguage.Equals(
+                    language.SteamLanguage,
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (languageChanged){
+                progress?.Report(
+                    new OperationProgress($"Removing {previousLanguage.DisplayName} language files...", 8));
+
+                ulong previousManifestId = existingState.Manifests.TryGetValue(
+                    previousLanguage.Depot.DepotId,
+                    out ulong installedManifestId)
+                    ? installedManifestId
+                    : previousLanguage.Depot.ManifestId;
+
+                DepotSpec previousDepot = new(previousLanguage.Depot.DepotId, previousManifestId);
+
+                Console.WriteLine();
+                Console.WriteLine(
+                    $"Switching language from " +
+                    $"{previousLanguage.DisplayName} to " +
+                    $"{language.DisplayName}.");
+
+                Console.WriteLine(
+                    $"Reading previous language depot " +
+                    $"{previousDepot.DepotId} manifest...");
+
+                IReadOnlyList<string> previousFiles = await depots.GetManifestFilesAsync(
+                        downloader,
+                        steamUsername,
+                        previousDepot,
+                        cancellationToken);
+
+                int removed = languageCleanup.RemoveDepotFiles(installRoot, previousFiles);
+
+                Console.WriteLine($"Removed {removed} file(s) from the previous language depot.");
+
+                Console.WriteLine();
+            }
+        }
+
         await depots.DownloadDepotsAsync(
             downloader,
             installRoot,
@@ -219,7 +278,12 @@ public sealed class InstallCoordinator : IDisposable
             validate,
             MessageProgress(progress),
             cancellationToken);
+
         VerifyGameFiles(installRoot);
+
+        Console.WriteLine();
+        Console.WriteLine(
+            "Steam files are ready. Return to the Sunrise Installer.");
     }
 
     private static async Task SaveStateAsync(

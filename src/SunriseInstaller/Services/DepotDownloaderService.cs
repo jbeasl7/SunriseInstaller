@@ -74,11 +74,7 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(toolRoot);
-        using ConsoleWindow console = new("Sunrise Installer - Steam sign-in");
-        Console.WriteLine("Sunrise Installer");
-        Console.WriteLine("DepotDownloader needs a Steam account that owns the game.");
-        Console.WriteLine("Credentials are handled by DepotDownloader in this window.");
-        Console.WriteLine();
+
 
         DepotSpec[] depots = AppConstants.DepotsFor(language);
         for (int index = 0; index < depots.Length; index++)
@@ -100,9 +96,109 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
             }
         }
 
-        Console.WriteLine();
-        Console.WriteLine("Steam files are ready. Return to the Sunrise Installer.");
     }
+
+    public async Task<IReadOnlyList<string>> GetManifestFilesAsync(
+    string executable,
+    string steamUsername,
+    DepotSpec depot,
+    CancellationToken cancellationToken)
+{
+    string temporaryDirectory = Path.Combine(
+        AppConstants.AppDataRoot,
+        "temp",
+        $"manifest-{depot.DepotId}-{Guid.NewGuid():N}");
+
+    Directory.CreateDirectory(temporaryDirectory);
+
+    try {
+        int exitCode = await RunAsync(
+            executable,
+            temporaryDirectory,
+            steamUsername,
+            depot,
+            validate: false,
+            cancellationToken,
+            manifestOnly: true);
+
+        if (exitCode != 0){
+            throw new InstallerException(
+                $"DepotDownloader could not read manifest {depot.ManifestId} " +
+                $"for depot {depot.DepotId}.");
+        }
+
+        string manifestPath = Path.Combine(
+            temporaryDirectory,
+            $"manifest_{depot.DepotId}_{depot.ManifestId}.txt");
+
+        if (!File.Exists(manifestPath)){
+            throw new InstallerException("DepotDownloader did not produce the expected manifest file.");
+        }
+
+        string[] lines = await File.ReadAllLinesAsync(
+            manifestPath,
+            cancellationToken);
+
+        List<string> files = [];
+
+        foreach (string line in lines){
+            string[] parts = line.Split(
+                ' ',
+                5,
+                StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length != 5){
+                continue;
+            }
+
+            if (!ulong.TryParse(
+                    parts[0],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out _)){
+                continue;
+            }
+
+            if (!int.TryParse(
+                    parts[1],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out _)){
+                continue;
+            }
+
+            if (parts[2].Length != 40){
+                continue;
+            }
+
+            if (!int.TryParse(
+                    parts[3],
+                    NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture,
+                    out _)){
+                continue;
+            }
+
+            files.Add(parts[4]);
+        }
+
+        if (files.Count == 0){
+            throw new InstallerException("The previous language depot manifest contained no readable files.");
+        }
+
+        log.Info(
+            "manifest_files_loaded",
+            "Loaded language depot manifest file list.",
+            ("depot", depot.DepotId),
+            ("manifest", depot.ManifestId),
+            ("count", files.Count));
+
+        return files;
+    }
+    finally {
+        FileCleanup.TryDeleteDirectory(temporaryDirectory);
+    }
+}
 
     private async Task<int> RunAsync(
         string executable,
@@ -110,7 +206,8 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
         string steamUsername,
         DepotSpec depot,
         bool validate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool manifestOnly = false)
     {
         ProcessStartInfo startInfo = new()
         {
@@ -127,6 +224,10 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
         startInfo.ArgumentList.Add("-remember-password");
         AddArgument(startInfo, "-os", "windows");
         AddArgument(startInfo, "-osarch", "64");
+        if (manifestOnly)
+        {
+            startInfo.ArgumentList.Add("-manifest-only");
+        }
         if (validate)
         {
             startInfo.ArgumentList.Add("-validate");
