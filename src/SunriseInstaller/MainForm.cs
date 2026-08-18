@@ -18,7 +18,7 @@ public sealed partial class MainForm : Form
     private readonly Button repairButton = new();
     private readonly Button updateButton = new();
     private readonly Button cancelButton = new();
-    
+
     private CancellationTokenSource? operationCancellation;
     private bool busy;
     private bool preferencesLoaded;
@@ -37,8 +37,10 @@ public sealed partial class MainForm : Form
         Font = new Font("Segoe UI", 9F);
         BackColor = Color.FromArgb(245, 247, 250);
         BuildLayout();
-        gameLanguage.SelectedIndexChanged += async (_, _) => {
-            if (preferencesLoaded && !busy){
+        gameLanguage.SelectedIndexChanged += async (_, _) =>
+        {
+            if (preferencesLoaded && !busy)
+            {
                 await SavePreferencesAsync(CancellationToken.None);
             }
         };
@@ -59,8 +61,10 @@ public sealed partial class MainForm : Form
         base.Dispose(disposing);
     }
 
-    private async Task LoadPreferencesAsync(){
-        try{
+    private async Task LoadPreferencesAsync()
+    {
+        try
+        {
             UserPreferences preferences = await InstallCoordinator.LoadPreferencesAsync(CancellationToken.None);
             installPath.Text = preferences.InstallDirectory;
             steamUsername.Text = preferences.SteamUsername;
@@ -68,7 +72,9 @@ public sealed partial class MainForm : Form
             gameLanguage.SelectedItem = savedLanguage;
             preferencesLoaded = true;
             await RefreshLocalStatusAsync();
-        } catch (Exception exception){
+        }
+        catch (Exception exception)
+        {
             ShowFailure(exception);
         }
     }

@@ -44,12 +44,15 @@ public static class AppConstants
             new DepotSpec(1085674, 7148196199569436690)),
     ];
 
-    public static LanguageSpec ResolveLanguage(string? steamLanguage) {
-            foreach (LanguageSpec language in Languages) {
-                if (language.SteamLanguage.Equals(steamLanguage, StringComparison.OrdinalIgnoreCase)) {
-                    return language;
-                }
+    public static LanguageSpec ResolveLanguage(string? steamLanguage)
+    {
+        foreach (LanguageSpec language in Languages)
+        {
+            if (language.SteamLanguage.Equals(steamLanguage, StringComparison.OrdinalIgnoreCase))
+            {
+                return language;
             }
+        }
         return Languages[0];
     }
 

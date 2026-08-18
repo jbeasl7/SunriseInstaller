@@ -26,18 +26,40 @@ Logo credit: [Solus](https://www.youtube.com/@Solus-yt).
 
 ## Operations
 
-| action         | result                                                              |
-|----------------|---------------------------------------------------------------------|
-| Install        | Downloads the correct version of the game and installs the mod.     |
-| Repair         | Validates the game, deletes the user config and reinstalls the mod. |
-| Check / Update | Checks if a new mod version is released and installs it.            |
+| action         | result |
+|----------------|--------|
+| Install        | Downloads the correct game build, selected language, and Sunrise. |
+| Repair         | Validates the game and selected language, deletes the Sunrise config, and reinstalls the mod. |
+| Check / Update | Checks for a new Sunrise release and installs it. |
 
-Uses Steam app `1085660` with these manifests:
+Uses Steam app `1085660` with the shared Destiny 2 2.9.2 Windows depot
+and one language-specific depot selected during installation.
 
-| depot     | manifest              |
-|-----------|-----------------------|
+| Language | Steam language | Depot | Manifest |
+|---|---|---:|---:|
+| English | `english` | `1085662` | `2210332166360342287` |
+| French | `french` | `1085663` | `2934940253687559290` |
+| German | `german` | `1085664` | `2207989571290186153` |
+| Italian | `italian` | `1085665` | `6668232053215128229` |
+| Japanese | `japanese` | `1085666` | `7430022397683116838` |
+| Portuguese (Brazil) | `brazilian` | `1085667` | `9037238175838085860` |
+| Spanish (Spain) | `spanish` | `1085668` | `3424833900894552134` |
+| Russian | `russian` | `1085669` | `4539277942371480381` |
+| Polish | `polish` | `1085670` | `6407581507105256731` |
+| Chinese (Simplified) | `schinese` | `1085671` | `4397663774546719308` |
+| Chinese (Traditional) | `tchinese` | `1085672` | `3906738704604711877` |
+| Spanish (Latin America) | `latam` | `1085673` | `4773170998099699561` |
+| Korean | `koreana` | `1085674` | `7148196199569436690` |
+
+The shared Windows depot is:
+
+| Depot | Manifest |
+|---|---:|
 | `1085661` | `7180122903232116872` |
-| `1085662` | `2210332166360342287` |
+
+When changing languages, the installer removes files belonging to the
+previous language depot before installing the new one. The selected
+language is also written to Sunrise's Steam language setting.
 
 Install requires ~110 GiB of free space.
 

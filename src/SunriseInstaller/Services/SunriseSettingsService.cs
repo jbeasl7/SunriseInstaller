@@ -3,14 +3,17 @@ using System.Text.Json.Nodes;
 
 namespace Sunrise.Installer.Services;
 
-public sealed class SunriseSettingsService(InstallerLog log){
-    private static readonly JsonSerializerOptions JsonOptions = new(){
+public sealed class SunriseSettingsService(InstallerLog log)
+{
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
         WriteIndented = true,
     };
     public async Task SetLanguageAsync(
         string installRoot,
         string steamLanguage,
-        CancellationToken cancellationToken){
+        CancellationToken cancellationToken)
+    {
         string directory = Path.Combine(
             installRoot,
             "bin",
@@ -23,7 +26,8 @@ public sealed class SunriseSettingsService(InstallerLog log){
 
         JsonObject root;
 
-        if (File.Exists(path)){
+        if (File.Exists(path))
+        {
             await using FileStream input = File.OpenRead(path);
 
             JsonNode? existing =
@@ -35,16 +39,19 @@ public sealed class SunriseSettingsService(InstallerLog log){
                 ?? throw new InstallerException(
                     "Sunrise settings.json is not a JSON object.");
         }
-        else {
+        else
+        {
             root = new JsonObject();
         }
 
         JsonObject steam;
 
-        if (root["steam"] is JsonObject existingSteam){
+        if (root["steam"] is JsonObject existingSteam)
+        {
             steam = existingSteam;
         }
-        else {
+        else
+        {
             steam = new JsonObject();
             root["steam"] = steam;
         }
@@ -54,32 +61,36 @@ public sealed class SunriseSettingsService(InstallerLog log){
         string temporaryPath =
             path + $".{Guid.NewGuid():N}.tmp";
 
-        try {
+        try
+        {
             await using (FileStream output = new(
                 temporaryPath,
                 FileMode.CreateNew,
                 FileAccess.Write,
                 FileShare.None,
                 16 * 1024,
-                FileOptions.Asynchronous | FileOptions.WriteThrough)){
-            await JsonSerializer.SerializeAsync(
-                output,
-                root,
-                JsonOptions,
-                cancellationToken);
-            await output.FlushAsync(cancellationToken);
+                FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await JsonSerializer.SerializeAsync(
+                    output,
+                    root,
+                    JsonOptions,
+                    cancellationToken);
+                await output.FlushAsync(cancellationToken);
             }
             File.Move(
                 temporaryPath,
                 path,
                 overwrite: true);
         }
-        catch (JsonException exception){
+        catch (JsonException exception)
+        {
             throw new InstallerException(
                 "Sunrise settings.json could not be updated.",
                 exception);
         }
-        finally{
+        finally
+        {
             FileCleanup.TryDeleteFile(temporaryPath);
         }
 

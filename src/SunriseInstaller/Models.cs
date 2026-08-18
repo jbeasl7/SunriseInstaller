@@ -25,7 +25,7 @@ public sealed record PreparedPayload(
 
 public sealed class InstallerState
 {
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = 2;
     public uint AppId { get; set; } = AppConstants.SteamAppId;
     public string ReleaseTag { get; set; } = string.Empty;
     public string ReleaseAsset { get; set; } = string.Empty;

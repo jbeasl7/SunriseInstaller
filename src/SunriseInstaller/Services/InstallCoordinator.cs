@@ -135,7 +135,7 @@ public sealed class InstallCoordinator : IDisposable
             payload = await sunrise.PrepareLatestAsync(root, ScaleProgress(progress, 10, 85), cancellationToken);
             progress?.Report(new OperationProgress("Installing the update...", 90));
             await payloadInstaller.ApplyAsync(root, payload, preserveDepotDll: false, cancellationToken);
- 
+
             await SaveStateAsync(
                 root,
                 payload,
@@ -224,7 +224,8 @@ public sealed class InstallCoordinator : IDisposable
 
         InstallerState? existingState = await stores.LoadStateAsync(installRoot, cancellationToken);
 
-        if (existingState is not null){
+        if (existingState is not null)
+        {
             LanguageSpec previousLanguage =
                 AppConstants.ResolveLanguage(
                     existingState.SteamLanguage);
@@ -234,7 +235,8 @@ public sealed class InstallCoordinator : IDisposable
                     language.SteamLanguage,
                     StringComparison.OrdinalIgnoreCase);
 
-            if (languageChanged){
+            if (languageChanged)
+            {
                 progress?.Report(
                     new OperationProgress($"Removing {previousLanguage.DisplayName} language files...", 8));
 

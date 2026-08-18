@@ -103,102 +103,113 @@ public sealed class DepotDownloaderService(GitHubClient gitHub, InstallerLog log
     string steamUsername,
     DepotSpec depot,
     CancellationToken cancellationToken)
-{
-    string temporaryDirectory = Path.Combine(
-        AppConstants.AppDataRoot,
-        "temp",
-        $"manifest-{depot.DepotId}-{Guid.NewGuid():N}");
+    {
+        string temporaryDirectory = Path.Combine(
+            AppConstants.AppDataRoot,
+            "temp",
+            $"manifest-{depot.DepotId}-{Guid.NewGuid():N}");
 
-    Directory.CreateDirectory(temporaryDirectory);
+        Directory.CreateDirectory(temporaryDirectory);
 
-    try {
-        int exitCode = await RunAsync(
-            executable,
-            temporaryDirectory,
-            steamUsername,
-            depot,
-            validate: false,
-            cancellationToken,
-            manifestOnly: true);
+        try
+        {
+            int exitCode = await RunAsync(
+                executable,
+                temporaryDirectory,
+                steamUsername,
+                depot,
+                validate: false,
+                cancellationToken,
+                manifestOnly: true);
 
-        if (exitCode != 0){
-            throw new InstallerException(
-                $"DepotDownloader could not read manifest {depot.ManifestId} " +
-                $"for depot {depot.DepotId}.");
+            if (exitCode != 0)
+            {
+                throw new InstallerException(
+                    $"DepotDownloader could not read manifest {depot.ManifestId} " +
+                    $"for depot {depot.DepotId}.");
+            }
+
+            string manifestPath = Path.Combine(
+                temporaryDirectory,
+                $"manifest_{depot.DepotId}_{depot.ManifestId}.txt");
+
+            if (!File.Exists(manifestPath))
+            {
+                throw new InstallerException("DepotDownloader did not produce the expected manifest file.");
+            }
+
+            string[] lines = await File.ReadAllLinesAsync(
+                manifestPath,
+                cancellationToken);
+
+            List<string> files = [];
+
+            foreach (string line in lines)
+            {
+                string[] parts = line.Split(
+                    ' ',
+                    5,
+                    StringSplitOptions.RemoveEmptyEntries);
+
+                if (parts.Length != 5)
+                {
+                    continue;
+                }
+
+                if (!ulong.TryParse(
+                        parts[0],
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out _))
+                {
+                    continue;
+                }
+
+                if (!int.TryParse(
+                        parts[1],
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out _))
+                {
+                    continue;
+                }
+
+                if (parts[2].Length != 40)
+                {
+                    continue;
+                }
+
+                if (!int.TryParse(
+                        parts[3],
+                        NumberStyles.HexNumber,
+                        CultureInfo.InvariantCulture,
+                        out _))
+                {
+                    continue;
+                }
+
+                files.Add(parts[4]);
+            }
+
+            if (files.Count == 0)
+            {
+                throw new InstallerException("The previous language depot manifest contained no readable files.");
+            }
+
+            log.Info(
+                "manifest_files_loaded",
+                "Loaded language depot manifest file list.",
+                ("depot", depot.DepotId),
+                ("manifest", depot.ManifestId),
+                ("count", files.Count));
+
+            return files;
         }
-
-        string manifestPath = Path.Combine(
-            temporaryDirectory,
-            $"manifest_{depot.DepotId}_{depot.ManifestId}.txt");
-
-        if (!File.Exists(manifestPath)){
-            throw new InstallerException("DepotDownloader did not produce the expected manifest file.");
+        finally
+        {
+            FileCleanup.TryDeleteDirectory(temporaryDirectory);
         }
-
-        string[] lines = await File.ReadAllLinesAsync(
-            manifestPath,
-            cancellationToken);
-
-        List<string> files = [];
-
-        foreach (string line in lines){
-            string[] parts = line.Split(
-                ' ',
-                5,
-                StringSplitOptions.RemoveEmptyEntries);
-
-            if (parts.Length != 5){
-                continue;
-            }
-
-            if (!ulong.TryParse(
-                    parts[0],
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out _)){
-                continue;
-            }
-
-            if (!int.TryParse(
-                    parts[1],
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out _)){
-                continue;
-            }
-
-            if (parts[2].Length != 40){
-                continue;
-            }
-
-            if (!int.TryParse(
-                    parts[3],
-                    NumberStyles.HexNumber,
-                    CultureInfo.InvariantCulture,
-                    out _)){
-                continue;
-            }
-
-            files.Add(parts[4]);
-        }
-
-        if (files.Count == 0){
-            throw new InstallerException("The previous language depot manifest contained no readable files.");
-        }
-
-        log.Info(
-            "manifest_files_loaded",
-            "Loaded language depot manifest file list.",
-            ("depot", depot.DepotId),
-            ("manifest", depot.ManifestId),
-            ("count", files.Count));
-
-        return files;
     }
-    finally {
-        FileCleanup.TryDeleteDirectory(temporaryDirectory);
-    }
-}
 
     private async Task<int> RunAsync(
         string executable,
