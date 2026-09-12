@@ -109,6 +109,30 @@ public sealed partial class MainForm
         steamUsername.Margin = new Padding(0, 5, 0, 8);
         panel.Controls.Add(steamUsername, 0, 1);
 
+        panel.Controls.Add(FieldLabel("Game language"), 0, 2);
+        gameLanguage.DropDownStyle = ComboBoxStyle.DropDownList;
+        gameLanguage.DisplayMember = nameof(LanguageSpec.DisplayName);
+        gameLanguage.DataSource = AppConstants.Languages;
+        gameLanguage.Dock = DockStyle.Top;
+        gameLanguage.Margin = new Padding(0, 5, 0, 8);
+        panel.Controls.Add(gameLanguage, 0, 3);
+        languageDownloadNotice.Text =
+            "Language files are downloaded separately. Changing the game language later " +
+            "will require additional downloads.";
+        languageDownloadNotice.AutoSize = true;
+        languageDownloadNotice.ForeColor = Color.FromArgb(100, 116, 139);
+        languageDownloadNotice.Margin = new Padding(0, 0, 0, 6);
+        panel.Controls.Add(languageDownloadNotice, 0, 4);
+
+        languageSupportWarning.Text =
+            "Warning: Non-English installations may be harder to support. " +
+            "English is recommended when troubleshooting.";
+        languageSupportWarning.AutoSize = true;
+        languageSupportWarning.ForeColor = Color.FromArgb(180, 83, 9);
+        languageSupportWarning.Margin = new Padding(0, 0, 0, 8);
+        languageSupportWarning.Visible = false;
+        panel.Controls.Add(languageSupportWarning, 0, 5);
+
         Label help = new()
         {
             Text = "A console opens for password and Steam Guard prompts.",
@@ -116,7 +140,7 @@ public sealed partial class MainForm
             ForeColor = Color.FromArgb(100, 116, 139),
             Margin = new Padding(0),
         };
-        panel.Controls.Add(help, 0, 2);
+        panel.Controls.Add(help, 0, 6);
         return panel;
     }
 

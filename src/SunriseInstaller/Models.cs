@@ -2,6 +2,11 @@ namespace Sunrise.Installer;
 
 public sealed record DepotSpec(uint DepotId, ulong ManifestId);
 
+public sealed record LanguageSpec(
+    string DisplayName,
+    string SteamLanguage,
+    DepotSpec Depot);
+
 public sealed record ReleaseAsset(
     string Name,
     Uri DownloadUrl,
@@ -20,13 +25,14 @@ public sealed record PreparedPayload(
 
 public sealed class InstallerState
 {
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = 2;
     public uint AppId { get; set; } = AppConstants.SteamAppId;
     public string ReleaseTag { get; set; } = string.Empty;
     public string ReleaseAsset { get; set; } = string.Empty;
     public string? ReleaseAssetDigest { get; set; }
     public string InstalledDllSha256 { get; set; } = string.Empty;
     public DateTimeOffset InstalledAtUtc { get; set; }
+    public string SteamLanguage { get; set; } = "english";
     public Dictionary<uint, ulong> Manifests { get; set; } = [];
 }
 
@@ -34,6 +40,7 @@ public sealed class UserPreferences
 {
     public string InstallDirectory { get; set; } = string.Empty;
     public string SteamUsername { get; set; } = string.Empty;
+    public string SteamLanguage { get; set; } = "english";
 }
 
 public enum UpdateStatus
