@@ -66,7 +66,7 @@ public sealed class JsonStores(InstallerLog log)
 
     private static string PreferencesPath() => Path.Combine(AppConstants.AppDataRoot, "preferences.json");
 
-    private static async Task SaveAtomicAsync<T>(
+    internal static async Task SaveAtomicAsync<T>(
         string path,
         T value,
         CancellationToken cancellationToken)

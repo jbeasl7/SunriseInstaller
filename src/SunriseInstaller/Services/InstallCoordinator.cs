@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Sunrise.Installer.Services;
 
 public sealed class InstallCoordinator : IDisposable
@@ -38,7 +40,7 @@ public sealed class InstallCoordinator : IDisposable
         PreparedPayload? payload = null;
         try
         {
-            await PrepareGameFilesAsync(
+            string[] obsoleteFiles = await PrepareGameFilesAsync(
                 root,
                 steamUsername.Trim(),
                 language,
@@ -47,10 +49,13 @@ public sealed class InstallCoordinator : IDisposable
                 cancellationToken);
             progress?.Report(new OperationProgress("Preparing Sunrise...", 92));
             payload = await sunrise.PrepareLatestAsync(root, ScaleProgress(progress, 92, 96), cancellationToken);
+            JsonObject settings = await sunriseSettings.PrepareAsync(
+                root, payload.DllPath, language.SteamLanguage, reset: false, cancellationToken);
             progress?.Report(new OperationProgress("Installing Sunrise...", 97));
             await payloadInstaller.ApplyAsync(root, payload, preserveDepotDll: true, cancellationToken);
-            await sunriseSettings.SetLanguageAsync(root, language.SteamLanguage, cancellationToken);
-            await SaveStateAsync(root, payload, language, cancellationToken);
+            await SunriseSettingsService.ApplyAsync(root, settings, cancellationToken);
+            InstallerState state = await SaveStateAsync(root, payload, language, obsoleteFiles, cancellationToken);
+            await languageCleanup.CompleteAsync(root, state, cancellationToken);
             progress?.Report(new OperationProgress("Install complete.", 100));
             log.Info("install_done", "Install complete.", ("mode", "install"));
         }
@@ -82,21 +87,24 @@ public sealed class InstallCoordinator : IDisposable
         PreparedPayload? payload = null;
         try
         {
-            await PrepareGameFilesAsync(
+            string[] obsoleteFiles = await PrepareGameFilesAsync(
                 root,
                 steamUsername.Trim(),
                 language,
                 validate: true,
                 progress,
                 cancellationToken);
-            progress?.Report(new OperationProgress("Deleting Sunrise config and cached data...", 95));
+            progress?.Report(new OperationProgress("Preparing Sunrise...", 95));
+            payload = await sunrise.PrepareLatestAsync(root, ScaleProgress(progress, 95, 98), cancellationToken);
+            JsonObject settings = await sunriseSettings.PrepareAsync(
+                root, payload.DllPath, language.SteamLanguage, reset: true, cancellationToken);
+            progress?.Report(new OperationProgress("Deleting Sunrise config and cached data...", 98));
             payloadInstaller.DeleteSunriseData(root);
-            progress?.Report(new OperationProgress("Preparing Sunrise...", 96));
-            payload = await sunrise.PrepareLatestAsync(root, ScaleProgress(progress, 96, 98), cancellationToken);
             progress?.Report(new OperationProgress("Reinstalling Sunrise...", 99));
             await payloadInstaller.ApplyAsync(root, payload, preserveDepotDll: true, cancellationToken);
-            await sunriseSettings.SetLanguageAsync(root, language.SteamLanguage, cancellationToken);
-            await SaveStateAsync(root, payload, language, cancellationToken);
+            await SunriseSettingsService.ApplyAsync(root, settings, cancellationToken);
+            InstallerState state = await SaveStateAsync(root, payload, language, obsoleteFiles, cancellationToken);
+            await languageCleanup.CompleteAsync(root, state, cancellationToken);
             progress?.Report(new OperationProgress("Repair complete.", 100));
             log.Info("repair_done", "Repair complete.", ("mode", "repair"));
         }
@@ -119,25 +127,32 @@ public sealed class InstallCoordinator : IDisposable
         VerifyGameFiles(root);
         progress?.Report(new OperationProgress("Checking for updates...", 5));
         UpdateCheck check = await CheckForUpdateAsync(root, cancellationToken);
+        InstallerState? installedState = await stores.LoadStateAsync(root, cancellationToken);
         if (check.Status == UpdateStatus.Current)
         {
+            if (installedState is not null)
+            {
+                await languageCleanup.CompleteAsync(root, installedState, cancellationToken);
+            }
             progress?.Report(new OperationProgress(check.Message, 100));
             return false;
         }
-
-        InstallerState? installedState = await stores.LoadStateAsync(root, cancellationToken);
-        LanguageSpec installedLanguage = AppConstants.ResolveLanguage(installedState?.SteamLanguage);
 
         log.Info("update_start", "Update started.", ("tag", check.LatestRelease.Tag));
         PreparedPayload? payload = null;
         try
         {
             payload = await sunrise.PrepareLatestAsync(root, ScaleProgress(progress, 10, 85), cancellationToken);
+            JsonObject settings = await sunriseSettings.PrepareAsync(
+                root, payload.DllPath, installedState?.SteamLanguage, reset: false, cancellationToken);
+            LanguageSpec installedLanguage = AppConstants.ResolveLanguage(settings["steam"]!["language"]!.GetValue<string>());
             progress?.Report(new OperationProgress("Installing the update...", 90));
             await payloadInstaller.ApplyAsync(root, payload, preserveDepotDll: false, cancellationToken);
-
-            await SaveStateAsync(root, payload, installedLanguage, cancellationToken, installedState?.Manifests);
-
+            await SunriseSettingsService.ApplyAsync(root, settings, cancellationToken);
+            InstallerState state = await SaveStateAsync(
+                root, payload, installedLanguage, installedState?.PendingLanguageFiles ?? [],
+                cancellationToken, installedState?.Manifests ?? new Dictionary<uint, ulong>());
+            await languageCleanup.CompleteAsync(root, state, cancellationToken);
             progress?.Report(new OperationProgress($"Updated to {payload.Release.Tag}.", 100));
             log.Info("update_done", "Update complete.", ("tag", payload.Release.Tag));
             return true;
@@ -197,7 +212,7 @@ public sealed class InstallCoordinator : IDisposable
 
     public void Dispose() => gitHub.Dispose();
 
-    private async Task PrepareGameFilesAsync(
+    private async Task<string[]> PrepareGameFilesAsync(
         string installRoot,
         string steamUsername,
         LanguageSpec language,
@@ -219,12 +234,11 @@ public sealed class InstallCoordinator : IDisposable
 
         InstallerState? existingState = await stores.LoadStateAsync(installRoot, cancellationToken);
 
-        string[]? obsoleteLanguageFiles = null;
-        LanguageSpec? previousLanguage = null;
+        string[] obsoleteLanguageFiles = existingState?.PendingLanguageFiles ?? [];
 
         if (existingState is not null)
         {
-            previousLanguage = AppConstants.ResolveLanguage(existingState.SteamLanguage);
+            LanguageSpec previousLanguage = AppConstants.ResolveLanguage(existingState.SteamLanguage);
 
             bool languageChanged = !previousLanguage.SteamLanguage.Equals(language.SteamLanguage, StringComparison.OrdinalIgnoreCase);
 
@@ -279,15 +293,8 @@ public sealed class InstallCoordinator : IDisposable
                     language.Depot,
                     cancellationToken);
 
-                HashSet<string> keepFiles = new(
-                    baseFiles
-                        .Concat(selectedFiles)
-                        .Select(path => path.Replace('\\', '/')),
-                    StringComparer.OrdinalIgnoreCase);
-
-                obsoleteLanguageFiles = previousFiles
-                    .Where(path => !keepFiles.Contains(path.Replace('\\', '/')))
-                    .ToArray();
+                obsoleteLanguageFiles = LanguageCleanupService.FindObsoleteFiles(
+                    previousFiles.Concat(obsoleteLanguageFiles), baseFiles.Concat(selectedFiles));
 
                 Console.WriteLine(
                     $"{obsoleteLanguageFiles.Length} old language file(s) " +
@@ -308,33 +315,18 @@ public sealed class InstallCoordinator : IDisposable
 
         VerifyGameFiles(installRoot);
 
-        if (obsoleteLanguageFiles is not null &&
-            previousLanguage is not null)
-        {
-            progress?.Report(
-                new OperationProgress(
-                    $"Removing {previousLanguage.DisplayName} language files...",
-                    90));
-
-            int removed = languageCleanup.RemoveDepotFiles(
-                installRoot,
-                obsoleteLanguageFiles);
-
-            Console.WriteLine();
-            Console.WriteLine(
-                $"Removed {removed} obsolete file(s) from the " +
-                $"{previousLanguage.DisplayName} language depot.");
-        }
-
         Console.WriteLine();
         Console.WriteLine(
             "Steam files are ready. Return to the Sunrise Installer.");
+        return obsoleteLanguageFiles;
     }
 
-    private static async Task SaveStateAsync(
+    /** The saved language and retry list must reach disk before obsolete files are deleted. */
+    private static async Task<InstallerState> SaveStateAsync(
         string root,
         PreparedPayload payload,
         LanguageSpec language,
+        string[] obsoleteFiles,
         CancellationToken cancellationToken,
         IReadOnlyDictionary<uint, ulong>? manifests = null)
     {
@@ -352,12 +344,14 @@ public sealed class InstallCoordinator : IDisposable
             InstalledAtUtc = DateTimeOffset.UtcNow,
             SteamLanguage = language.SteamLanguage,
             Manifests = savedManifests,
+            PendingLanguageFiles = obsoleteFiles,
         };
 
         await JsonStores.SaveStateAsync(
             root,
             state,
             cancellationToken);
+        return state;
     }
 
     private static void VerifyGameFiles(string root)

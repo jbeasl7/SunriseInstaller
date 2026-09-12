@@ -34,6 +34,7 @@ public sealed class InstallerState
     public DateTimeOffset InstalledAtUtc { get; set; }
     public string SteamLanguage { get; set; } = "english";
     public Dictionary<uint, ulong> Manifests { get; set; } = [];
+    public string[] PendingLanguageFiles { get; set; } = [];
 }
 
 public sealed class UserPreferences

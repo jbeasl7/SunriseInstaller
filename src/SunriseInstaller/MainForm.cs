@@ -20,11 +20,12 @@ public sealed partial class MainForm : Form
     private readonly Button repairButton = new();
     private readonly Button updateButton = new();
     private readonly Button cancelButton = new();
-
-
     private CancellationTokenSource? operationCancellation;
     private bool busy;
     private bool preferencesLoaded;
+    private bool loadingLocalStatus;
+    private int localStatusVersion;
+    private string? languageInstallRoot;
 
     private LanguageSpec SelectedLanguage => gameLanguage.SelectedItem as LanguageSpec ?? AppConstants.Languages[0];
 
@@ -62,7 +63,7 @@ public sealed partial class MainForm : Form
     {
         UpdateLanguageWarning();
 
-        if (!preferencesLoaded || busy)
+        if (!preferencesLoaded || busy || loadingLocalStatus)
         {
             return;
         }
@@ -103,24 +104,60 @@ public sealed partial class MainForm : Form
                 StringComparison.OrdinalIgnoreCase);
     }
 
+    /** Only the latest folder lookup may choose its installed language. */
     private async Task RefreshLocalStatusAsync()
     {
-        if (busy || string.IsNullOrWhiteSpace(installPath.Text))
+        if (busy || !preferencesLoaded)
         {
             return;
         }
 
+        int version = ++localStatusVersion;
+        loadingLocalStatus = true;
+        SetBusyState(busy);
         try
         {
+            if (string.IsNullOrWhiteSpace(installPath.Text))
+            {
+                languageInstallRoot = null;
+                status.Text = "Select an install folder.";
+                return;
+            }
+
             string installDirectory = Path.GetFullPath(installPath.Text.Trim());
             InstallerState? state = await coordinator.LoadStateAsync(installDirectory, CancellationToken.None);
+            if (version != localStatusVersion || IsDisposed)
+            {
+                return;
+            }
+
+            if (!string.Equals(languageInstallRoot, installDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                if (state is not null)
+                {
+                    gameLanguage.SelectedItem = AppConstants.ResolveLanguage(state.SteamLanguage);
+                }
+                languageInstallRoot = installDirectory;
+            }
             status.Text = state is null
                 ? "No Sunrise install was found in this folder."
                 : $"Installed Sunrise release: {state.ReleaseTag}";
         }
         catch
         {
-            status.Text = "The install folder path is not valid.";
+            if (version == localStatusVersion)
+            {
+                languageInstallRoot = null;
+                status.Text = "The install folder path is not valid.";
+            }
+        }
+        finally
+        {
+            if (version == localStatusVersion && !IsDisposed)
+            {
+                loadingLocalStatus = false;
+                SetBusyState(busy);
+            }
         }
     }
 

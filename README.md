@@ -57,9 +57,17 @@ The shared Windows depot is:
 |---|---:|
 | `1085661` | `7180122903232116872` |
 
-When changing languages, the installer installs the selected language
-first, then removes files unique to the previous language depot. The selected
-language is also written to Sunrise's Steam language setting.
+When changing languages, the installer saves the new Sunrise settings and install
+state before removing files unique to the previous language depot. Check / Update
+retries unfinished cleanup, including when Sunrise is already current.
+
+Fresh installs and Repair use the default settings embedded in the downloaded
+Sunrise DLL, with the selected language applied. Install and Update preserve
+compatible settings. Older settings versions reset to the DLL's defaults while
+keeping the installed language on Update.
+
+Selecting an existing install folder selects its recorded game language. Change
+the selector before Install or Repair to switch that folder to another language.
 
 Install requires ~110 GiB of free space.
 
@@ -73,6 +81,15 @@ Run the installer with a local Sunrise DLL:
 ```powershell
 .\SunriseInstaller.exe -test "C:\path\to\steam_api64.dll"
 ```
+
+Run regression checks with one or more Sunrise DLLs:
+
+```powershell
+dotnet run --project tests/SunriseInstaller.RegressionTests.csproj -c Release -- "C:\path\to\steam_api64.dll"
+```
+
+The checks use temporary install folders and read DLL resources without executing
+the DLLs. They cover settings, update failures, cleanup retries and folder selection.
 
 ## Local data
 `%LOCALAPPDATA%\SunriseInstaller\tools`. 
