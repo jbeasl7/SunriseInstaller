@@ -40,7 +40,7 @@ public sealed partial class MainForm
     {
         DialogResult confirmation = MessageBox.Show(
             this,
-            "Validate game and mod files. Also deletes " +
+            $"Validate game and mod files in {SelectedLanguage.DisplayName}. Also deletes " +
             "bin\\x64\\Sunrise, including your Sunrise config. Continue?",
             "Repair Sunrise",
             MessageBoxButtons.YesNo,
@@ -80,7 +80,7 @@ public sealed partial class MainForm
         string operationName,
         Func<IProgress<OperationProgress>, CancellationToken, Task> operation)
     {
-        if (busy)
+        if (busy || loadingLocalStatus)
         {
             return;
         }
@@ -162,11 +162,11 @@ public sealed partial class MainForm
     {
         installPath.Enabled = !isBusy;
         steamUsername.Enabled = !isBusy;
-        gameLanguage.Enabled = !isBusy;
+        gameLanguage.Enabled = !isBusy && !loadingLocalStatus;
         browseButton.Enabled = !isBusy;
-        installButton.Enabled = !isBusy;
-        repairButton.Enabled = !isBusy;
-        updateButton.Enabled = !isBusy;
+        installButton.Enabled = !isBusy && !loadingLocalStatus;
+        repairButton.Enabled = !isBusy && !loadingLocalStatus;
+        updateButton.Enabled = !isBusy && !loadingLocalStatus;
         cancelButton.Enabled = isBusy;
         if (!isBusy)
         {
