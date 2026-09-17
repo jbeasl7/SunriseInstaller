@@ -1,5 +1,10 @@
 # Sunrise Installer
 
+> Replaced by the [Sunrise Launcher](https://github.com/stanuwu/SunriseLauncher). Download it from
+> the [latest launcher release](https://github.com/stanuwu/SunriseLauncher/releases/latest). This
+> installer is kept for existing installs; the launcher reads their install state and takes them
+> over.
+
 Installer for [Sunrise](https://github.com/stanuwu/Sunrise).
 
 ## License
